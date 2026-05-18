@@ -12,12 +12,20 @@ exports.createReport = async (req, res) => {
     }
 
     try {
-        const fileContent = fs.readFileSync(file.path);
+        // GANTI BAGIAN INI:
+        // const fileContent = fs.readFileSync(file.path); 
+        
+        // MENJADI INI (Baca langsung dari memori):
+        const fileContent = file.buffer; 
+        
         const fileName = `${Date.now()}-${file.originalname}`;
 
         const { data, error } = await supabase.storage
             .from('waste-photos')
-            .upload(fileName, fileContent, { contentType: file.mimetype });
+            .upload(fileName, fileContent, { 
+                contentType: file.mimetype,
+                upsert: false 
+            });
 
         if (error) throw error;
 
@@ -32,7 +40,7 @@ exports.createReport = async (req, res) => {
             [user_id, latitude, longitude, deskripsi, photo_url, 'pending']
         );
 
-        fs.unlinkSync(file.path); // Hapus file temporary di laptop
+        // HAPUS baris fs.unlinkSync(file.path); karena sudah tidak pakai folder
 
         res.status(201).json({
             message: "Laporan berhasil dibuat (Foto tersimpan di Cloud)!",

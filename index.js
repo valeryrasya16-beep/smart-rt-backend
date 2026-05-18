@@ -5,7 +5,8 @@ const authController = require('./controllers/authController');
 const reportController = require('./controllers/reportController'); // Tambahkan ini
 
 const app = express();
-const upload = multer({ dest: 'uploads/' }); // Folder sementara simpan foto
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 app.use(cors());
 app.use(express.json());
