@@ -34,3 +34,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server nyala di port ${PORT}`);
 });
+// ... kode yang sudah ada ...
+
+// Tambahkan ini di paling bawah (setelah app.listen)
+module.exports = app;
