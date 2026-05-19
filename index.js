@@ -1,10 +1,12 @@
 const express = require('express');
 const cors = require('cors');
-const multer = require('multer'); // Tambahkan ini
+const multer = require('multer');
 const authController = require('./controllers/authController');
-const reportController = require('./controllers/reportController'); // Tambahkan ini
+const reportController = require('./controllers/reportController');
 
 const app = express();
+
+// Konfigurasi Multer untuk Memory Storage (Wajib buat Vercel)
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
@@ -17,25 +19,28 @@ app.post('/api/login', authController.login);
 app.put('/api/approve/:userId', authController.approveUser);
 
 // --- REPORT ROUTES ---
-// upload.single('foto') artinya kita ngirim 1 file dengan nama field 'foto'
+// Warga buat laporan
 app.post('/api/report', upload.single('foto'), reportController.createReport);
-app.get('/api/reports', reportController.getAllReports);
-// ... route report yang lama ...
-app.post('/api/report', upload.single('foto'), reportController.createReport);
+
+// Petugas/Admin liat semua laporan
 app.get('/api/reports', reportController.getAllReports);
 
-// TAMBAHKAN INI (Route untuk Petugas)
-app.get('/api/reports/pending', reportController.getPendingReports); // Petugas liat daftar sampah
-app.put('/api/report/take/:reportId', reportController.takeReport); // Petugas ambil tugas
+// Petugas liat daftar sampah yang masih pending
+app.get('/api/reports/pending', reportController.getPendingReports);
 
-// Tambahkan di bawah route report lainnya
+// Petugas ambil tugas
+app.put('/api/report/take/:reportId', reportController.takeReport);
+
+// Petugas selesaikan tugas & kasih poin
 app.put('/api/report/complete/:reportId', reportController.completeReport);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server nyala di port ${PORT}`);
-});
-// ... kode yang sudah ada ...
 
-// Tambahkan ini di paling bawah (setelah app.listen)
+// Supaya bisa jalan di lokal maupun Vercel
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`Server nyala di port ${PORT}`);
+    });
+}
+
 module.exports = app;

@@ -1,10 +1,13 @@
 const pool = require('../config/db');
 const supabase = require('../config/supabase');
-const fs = require('fs');
 
 // 1. Fungsi Warga Lapor Sampah (Upload ke Cloud)
 exports.createReport = async (req, res) => {
-    const { user_id, latitude, longitude, deskripsi } = req.body;
+    // Data dari FormData dikirim sebagai string, kita harus parse ke angka
+    const user_id = parseInt(req.body.user_id);
+    const latitude = parseFloat(req.body.latitude);
+    const longitude = parseFloat(req.body.longitude);
+    const { deskripsi } = req.body;
     const file = req.file;
 
     if (!file) {
@@ -12,41 +15,38 @@ exports.createReport = async (req, res) => {
     }
 
     try {
-        // GANTI BAGIAN INI:
-        // const fileContent = fs.readFileSync(file.path); 
-        
-        // MENJADI INI (Baca langsung dari memori):
-        const fileContent = file.buffer; 
-        
-        const fileName = `${Date.now()}-${file.originalname}`;
+        // Nama file unik
+        const fileName = `${Date.now()}-${file.originalname.replace(/\s/g, '_')}`;
 
+        // Upload ke Supabase Storage (Buffer)
         const { data, error } = await supabase.storage
             .from('waste-photos')
-            .upload(fileName, fileContent, { 
+            .upload(fileName, file.buffer, { 
                 contentType: file.mimetype,
                 upsert: false 
             });
 
         if (error) throw error;
 
+        // Ambil URL Public
         const { data: urlData } = supabase.storage
             .from('waste-photos')
             .getPublicUrl(fileName);
 
         const photo_url = urlData.publicUrl;
 
+        // Simpan ke Database
         const newReport = await pool.query(
             'INSERT INTO reports (user_id, latitude, longitude, deskripsi, photo_url, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [user_id, latitude, longitude, deskripsi, photo_url, 'pending']
         );
 
-        // HAPUS baris fs.unlinkSync(file.path); karena sudah tidak pakai folder
-
         res.status(201).json({
-            message: "Laporan berhasil dibuat (Foto tersimpan di Cloud)!",
+            message: "Laporan berhasil dibuat (Cloud)!",
             report: newReport.rows[0]
         });
     } catch (err) {
+        console.error("Error Upload:", err.message);
         res.status(500).json({ error: err.message });
     }
 };
