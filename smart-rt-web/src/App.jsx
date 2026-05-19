@@ -49,7 +49,7 @@ function App() {
         setDeskripsi('');
         setFoto(null);
       } catch (err) {
-        alert('Gagal Lapor: ' + err.message);
+        alert('Gagal Lapor: ' + (err.response?.data?.detail || err.message));
       } finally {
         setLoading(false);
       }

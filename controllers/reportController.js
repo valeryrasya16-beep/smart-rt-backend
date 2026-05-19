@@ -3,51 +3,49 @@ const supabase = require('../config/supabase');
 
 // 1. Fungsi Warga Lapor Sampah (Upload ke Cloud)
 exports.createReport = async (req, res) => {
-    // Data dari FormData dikirim sebagai string, kita harus parse ke angka
-    const user_id = parseInt(req.body.user_id);
-    const latitude = parseFloat(req.body.latitude);
-    const longitude = parseFloat(req.body.longitude);
-    const { deskripsi } = req.body;
-    const file = req.file;
-
-    if (!file) {
-        return res.status(400).json({ error: "Foto sampah wajib ada!" });
-    }
-
     try {
-        // Nama file unik
+        console.log("Menerima data:", req.body);
+        
+        const { user_id, latitude, longitude, deskripsi } = req.body;
+        const file = req.file;
+
+        // Validasi data
+        if (!file) throw new Error("File foto tidak terbaca oleh server");
+        if (!user_id || isNaN(user_id)) throw new Error("ID User tidak valid atau kosong");
+        if (!latitude || isNaN(latitude)) throw new Error("GPS Latitude tidak valid");
+
         const fileName = `${Date.now()}-${file.originalname.replace(/\s/g, '_')}`;
 
-        // Upload ke Supabase Storage (Buffer)
-        const { data, error } = await supabase.storage
+        // Proses Upload
+        const { data, error: uploadError } = await supabase.storage
             .from('waste-photos')
             .upload(fileName, file.buffer, { 
                 contentType: file.mimetype,
                 upsert: false 
             });
 
-        if (error) throw error;
+        if (uploadError) throw new Error("Supabase Storage Error: " + uploadError.message);
 
-        // Ambil URL Public
         const { data: urlData } = supabase.storage
             .from('waste-photos')
             .getPublicUrl(fileName);
 
         const photo_url = urlData.publicUrl;
 
-        // Simpan ke Database
-        const newReport = await pool.query(
-            'INSERT INTO reports (user_id, latitude, longitude, deskripsi, photo_url, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-            [user_id, latitude, longitude, deskripsi, photo_url, 'pending']
+        // Simpan ke DB
+        const { error: dbError } = await pool.query(
+            'INSERT INTO reports (user_id, latitude, longitude, deskripsi, photo_url, status) VALUES ($1, $2, $3, $4, $5, $6)',
+            [parseInt(user_id), parseFloat(latitude), parseFloat(longitude), deskripsi, photo_url, 'pending']
         );
 
-        res.status(201).json({
-            message: "Laporan berhasil dibuat (Cloud)!",
-            report: newReport.rows[0]
-        });
+        if (dbError) throw new Error("Database Error: " + dbError.message);
+
+        res.status(201).json({ message: "Laporan Berhasil!" });
+
     } catch (err) {
-        console.error("Error Upload:", err.message);
-        res.status(500).json({ error: err.message });
+        console.error("DEBUG ERROR:", err.message);
+        // Kirim pesan error asli ke frontend biar kita bisa baca di alert
+        res.status(500).json({ detail: err.message });
     }
 };
 
